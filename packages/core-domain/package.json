@@ -1,13 +1,18 @@
 {
-  "name": "core-domain",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "@gym-saas/core-domain",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc -p tsconfig.json",
+    "lint": "echo \"(pending)\"",
+    "test": "echo \"(pending)\""
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "packageManager": "pnpm@10.24.0"
+  "dependencies": {
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
 }
