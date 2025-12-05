@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: gym_saas_postgres
+    environment:
+      POSTGRES_DB: gym_saas
+      POSTGRES_USER: gym_saas
+      POSTGRES_PASSWORD: gym_saas
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_gym_saas:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pgdata_gym_saas:

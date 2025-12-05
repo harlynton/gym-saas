@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Gym {
+  id              String             @id
+  name            String
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  membershipPlans MembershipPlan[]
+  memberships     Membership[]
+  ticketPacks     TicketPack[]
+  members         GymMember[]
+}
+
+model User {
+  id        String   @id
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  ticketPacks TicketPack[]
+  gymMembers  GymMember[]
+}
+
+model GymMember {
+  id        String   @id
+  gymId     String
+  userId    String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  gym  Gym  @relation(fields: [gymId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([gymId, userId])
+}
+
+model MembershipPlan {
+  id           String   @id
+  gymId        String
+  name         String
+  durationDays Int
+
+  // Money aplanado (amount + currency)
+  priceAmount   Int
+  priceCurrency String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  gym         Gym          @relation(fields: [gymId], references: [id])
+  memberships Membership[]
+}
+
+enum MembershipStatus {
+  ACTIVE
+  CANCELED
+  EXPIRED
+}
+
+model Membership {
+  id               String            @id
+  gymId            String
+  userId           String
+  membershipPlanId String
+
+  startDate DateTime
+  endDate   DateTime
+
+  status MembershipStatus
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  gym            Gym            @relation(fields: [gymId], references: [id])
+  user           User           @relation(fields: [userId], references: [id])
+  membershipPlan MembershipPlan @relation(fields: [membershipPlanId], references: [id])
+}
+
+enum TicketPackStatus {
+  ACTIVE
+  USED_UP
+  EXPIRED
+  CANCELED
+}
+
+model TicketPack {
+  id        String           @id
+  gymId     String
+  userId    String
+  name      String
+
+  totalCredits     Int
+  remainingCredits Int
+
+  expiresAt DateTime?
+
+  priceAmount   Int
+  priceCurrency String
+
+  status TicketPackStatus
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  gym  Gym  @relation(fields: [gymId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+}

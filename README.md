@@ -1,169 +1,214 @@
-# 🏋️‍♂️ Gym SaaS Platform  
-Monorepo para una plataforma SaaS multi-tenant para gimnasios, construida con **NestJS**, **Expo**, **Next.js**, **PNPM workspaces** y **TypeScript**.
+# 🏋️‍♂️ Gym SaaS — Monorepo
 
-Este proyecto permite a múltiples gimnasios gestionar:
+# 🚀 Gym SaaS — Monorepo  
+Plataforma modular para administración de gimnasios, construida con arquitectura limpia, dominio desacoplado y backend escalable.
 
-- Mensualidades  
-- Tiqueteras / paquetes de clases  
-- Clases de spinning  
-- Pagos y notificaciones  
-- Control de clientes, entrenadores y administración  
-- Panel web para entrenadores  
-- App móvil para clientes
+Este monorepo contiene:
 
----
-
-## 🚀 Tecnologías principales
-
-### 🧩 **Monorepo**
-- **PNPM Workspaces**
-- **TypeScript**
-- **Carpetas:**
-  ```
-  apps/
-    api/         → Backend NestJS
-    admin-web/   → Frontend admin (Next.js) [pendiente]
-    mobile/      → App móvil (Expo / React Native)
-  packages/
-    core-domain/ → Dominio puro (entidades, casos de uso, repos)
-  ```
-
-### 🛠 **Backend API**
-- **NestJS**
-- Validaciones con `class-validator`
-- Arquitectura por módulos
-- Integración con el dominio sin acoplamiento
-- Repositorios en memoria (por ahora)
-
-### 🎨 **Frontend Admin**
-- **Next.js 15** (Soon)
-- Dashboard para entrenadores y dueños de gimnasio
-
-### 📱 **App móvil**
-- **Expo + React Native**  
-- Clientes pueden:
-  - comprar tiqueteras
-  - pagar mensualidades
-  - reservar spinning
-  - ver su progreso y próximas clases
-
-### 🧠 **Core Domain**
-Código completamente independiente de frameworks:
-
-- Entidades del dominio
-- Repositorios (interfaces)
-- Casos de uso:
-  - `createMembership`
-  - `createTicketPack`
-  - `consumeTicketCredit`
+- **Core Domain** (DDD puro)
+- **API Backend** (NestJS + Prisma 7)
+- **Admin Web** (Next.js)
+- **Mobile App** (React Native)
+- **Shared Types** y **UI Kit**
+- **Turborepo + PNPM Workspaces**
 
 ---
 
-## 📦 Estructura del proyecto
+# 🧩 Tecnologías principales
+
+| Capa | Tecnología |
+|------|------------|
+| Workspace | Turborepo + PNPM |
+| Dominio | TypeScript DDD |
+| Backend | NestJS 11 |
+| BD | PostgreSQL 16 |
+| ORM | Prisma 7 |
+| Infra | Docker Compose |
+| Tests | Jest 30 |
+
+---
+
+# 📁 Estructura del Monorepo
 
 ```
 gym-saas/
 │
 ├── apps/
-│   ├── api/              # Backend NestJS
-│   ├── admin-web/        # Panel web (Next.js)
-│   └── mobile/           # App móvil (Expo)
+│   ├── api/
+│   ├── admin-web/
+│   └── mobile/
 │
-└── packages/
-    └── core-domain/      # Entidades, repos, casos de uso
+├── packages/
+│   ├── core-domain/
+│   ├── shared-types/
+│   └── ui-kit/
+│
+├── prisma.config.ts
+├── docker-compose.yml
+├── pnpm-workspace.yaml
+└── turbo.json
 ```
 
 ---
 
-## 🏃‍♂️ Cómo correr el proyecto
+# 🧬 Prisma 7 — Configuración
 
-### 1. Instalar dependencias
-Desde la raíz:
+### **apps/api/prisma.config.ts**
+
+```ts
+import 'dotenv/config';
+import { defineConfig, env } from 'prisma/config';
+
+export default defineConfig({
+  schema: 'prisma/schema.prisma',
+  migrations: {
+    path: 'prisma/migrations',
+  },
+  datasource: {
+    url: env('DATABASE_URL'),
+  },
+});
+```
+
+---
+
+# 🗄️ Base de Datos (PostgreSQL + Docker)
+
+```yaml
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: gym_saas_postgres
+    environment:
+      POSTGRES_DB: gym_saas
+      POSTGRES_USER: gym_saas
+      POSTGRES_PASSWORD: gym_saas
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_gym_saas:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pgdata_gym_saas:
+```
+
+Levantar Postgres:
 
 ```bash
-pnpm install
+docker compose up -d
 ```
 
-### 2. Levantar el backend
+---
+
+# 🔌 Variables de entorno
+
+### apps/api/.env
+
+```env
+DATABASE_URL="postgresql://gym_saas:gym_saas@localhost:5432/gym_saas?schema=public"
+```
+
+---
+
+# 🧱 Migraciones
 
 ```bash
-pnpm --filter @gym-saas/api run start:dev
+pnpm --filter @gym-saas/api exec prisma migrate dev --name init_gym_saas
+pnpm --filter @gym-saas/api exec prisma generate
 ```
 
-La API quedará disponible en:
+---
 
-```
-http://localhost:3000/
+# 🔧 Integración NestJS + Prisma
+
+### prisma.service.ts
+
+```ts
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
+
+@Injectable()
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
+  async onModuleInit() {
+    await this.$connect();
+  }
+
+  async onModuleDestroy() {
+    await this.$disconnect();
+  }
+}
 ```
 
-### 3. Levantar la app móvil (cuando esté configurada)
+### prisma.module.ts
+
+```ts
+import { Global, Module } from '@nestjs/common';
+import { PrismaService } from './prisma.service';
+
+@Global()
+@Module({
+  providers: [PrismaService],
+  exports: [PrismaService],
+})
+export class PrismaModule {}
+```
+
+### app.module.ts
+
+```ts
+@Module({
+  imports: [
+    PrismaModule,
+    MembershipsModule,
+    TicketPacksModule,
+  ],
+})
+export class AppModule {}
+```
+
+---
+
+# 🧪 Testing del dominio
+
 ```bash
-cd apps/mobile
-pnpm start
+npx turbo test --filter=@gym-saas/core-domain
 ```
 
-### 4. Levantar el panel admin (cuando esté configurado)
+---
+
+# 🛠️ Scripts útiles
+
 ```bash
-cd apps/admin-web
-pnpm dev
+pnpm --filter @gym-saas/api dev
+pnpm --filter @gym-saas/admin-web dev
+pnpm --filter @gym-saas/core-domain test
 ```
 
 ---
 
-## 🧪 Casos de uso implementados
+# ✔ Requisitos
 
-### ✔️ Memberships
-- `createMembership`
-
-### ✔️ Tiqueteras (Ticket Packs)
-- `createTicketPack`
-- `consumeTicketCredit`
-
-Todos están integrados con el backend Nest a través de:
-
-- `TicketPacksService`
-- `MembershipsService`
+| Dependencia | Versión mínima |
+|------------|----------------|
+| NodeJS | 20.19+ |
+| PNPM | 9+ |
+| Docker | recomendado |
 
 ---
 
-## 📡 Endpoints disponibles (API)
+# 📌 Estado del proyecto
 
-### Crear tiquetera
-```
-POST /gyms/:gymId/ticket-packs
-```
+✔ Dominio completo  
+✔ Tests funcionando  
+✔ Prisma 7 configurado  
+✔ Migraciones OK  
+✔ NestJS integrado  
 
-### Consumir crédito
-```
-POST /gyms/:gymId/ticket-packs/:ticketPackId/consume
-```
-
-### Crear membresía
-```
-POST /gyms/:gymId/memberships
-```
-
----
-
-## 🧱 Próximos pasos
-
-- [ ] Implementar repositorios reales con **Prisma + PostgreSQL**
-- [ ] Módulo de **Spinning Classes** y reservas
-- [ ] Crear **admin-web** (Next.js 15)
-- [ ] Crear **app móvil** (Expo + React Native)
-- [ ] Autenticación y multi-tenancy por gimnasio
-- [ ] Integración con plataformas de pago (Wompi / MercadoPago)
-- [ ] Notificaciones push para clientes y entrenadores
-
----
-
-## ❤️ Contribución
-
-Este proyecto está diseñado para escalar a múltiples gimnasios.  
-Sientete libre de enviar ideas, mejoras o abrir issues para nuevas funcionalidades.
-
----
-
-## 📄 Licencia
-
-MIT — libre para uso personal y comercial.
+⏳ Repositorios Prisma por implementar  
+⏳ Endpoints REST por completar

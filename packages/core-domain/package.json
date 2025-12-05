@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "echo \"(pending)\"",
-    "test": "echo \"(pending)\""
+    "test": "jest --config ./jest.config.cjs"
   },
   "dependencies": {
     "zod": "^3.23.0"
