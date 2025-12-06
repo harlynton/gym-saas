@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "GymMember" ADD COLUMN     "role" TEXT NOT NULL DEFAULT 'MEMBER';

@@ -15,8 +15,9 @@ describe('AppController', () => {
   });
 
   describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+    it('should return the active gym message', () => {
+      expect(appController.getHello()).toBe('Gym activo: Demo Gym');
     });
   });
 });
+

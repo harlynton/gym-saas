@@ -1,214 +1,189 @@
-# 🏋️‍♂️ Gym SaaS — Monorepo
+# 📘 Gym SaaS — Monorepo
 
-# 🚀 Gym SaaS — Monorepo  
-Plataforma modular para administración de gimnasios, construida con arquitectura limpia, dominio desacoplado y backend escalable.
+## 🚀 Descripción general
 
-Este monorepo contiene:
+Gym SaaS es un sistema modular para administrar gimnasios, membresías, paquetes de tickets y clases.  
+El proyecto está organizado como un **monorepo** usando **pnpm + turborepo**.
 
-- **Core Domain** (DDD puro)
-- **API Backend** (NestJS + Prisma 7)
-- **Admin Web** (Next.js)
-- **Mobile App** (React Native)
-- **Shared Types** y **UI Kit**
-- **Turborepo + PNPM Workspaces**
+Incluye dos paquetes principales:
+
+- **core-domain** → Dominio puro (entidades, value objects, repositorios e interfaces, casos de uso).
+- **api** → API REST en **NestJS**, usando **Prisma ORM 7** con `PrismaPg`.
 
 ---
 
-# 🧩 Tecnologías principales
-
-| Capa | Tecnología |
-|------|------------|
-| Workspace | Turborepo + PNPM |
-| Dominio | TypeScript DDD |
-| Backend | NestJS 11 |
-| BD | PostgreSQL 16 |
-| ORM | Prisma 7 |
-| Infra | Docker Compose |
-| Tests | Jest 30 |
-
----
-
-# 📁 Estructura del Monorepo
+## 🗂️ Estructura del Monorepo
 
 ```
 gym-saas/
 │
 ├── apps/
-│   ├── api/
-│   ├── admin-web/
-│   └── mobile/
-│
+│   └── api/
+│       ├── src/
+│       ├── prisma/
+│       └── package.json
 ├── packages/
-│   ├── core-domain/
-│   ├── shared-types/
-│   └── ui-kit/
-│
-├── prisma.config.ts
-├── docker-compose.yml
+│   └── core-domain/
+│       └── src/
 ├── pnpm-workspace.yaml
 └── turbo.json
 ```
 
 ---
 
-# 🧬 Prisma 7 — Configuración
+## 🔧 Configuración del Entorno
 
-### **apps/api/prisma.config.ts**
+### 1. Archivo `.env`
+
+```
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/gym_saas?schema=public"
+```
+
+### 2. `prisma.config.ts`
 
 ```ts
-import 'dotenv/config';
-import { defineConfig, env } from 'prisma/config';
+import { defineConfig } from '@prisma/config';
 
 export default defineConfig({
-  schema: 'prisma/schema.prisma',
-  migrations: {
-    path: 'prisma/migrations',
-  },
+  schema: './prisma/schema.prisma',
   datasource: {
-    url: env('DATABASE_URL'),
+    url: process.env.DATABASE_URL!,
   },
 });
 ```
 
----
+### 3. PrismaService (NestJS)
 
-# 🗄️ Base de Datos (PostgreSQL + Docker)
+```ts
+import 'dotenv/config';
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
-```yaml
-version: "3.9"
+@Injectable()
+export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  constructor() {
+    const connectionString = process.env.DATABASE_URL;
 
-services:
-  db:
-    image: postgres:16-alpine
-    container_name: gym_saas_postgres
-    environment:
-      POSTGRES_DB: gym_saas
-      POSTGRES_USER: gym_saas
-      POSTGRES_PASSWORD: gym_saas
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata_gym_saas:/var/lib/postgresql/data
-    restart: unless-stopped
+    if (!connectionString) {
+      throw new Error('DATABASE_URL is not set in environment variables');
+    }
 
-volumes:
-  pgdata_gym_saas:
-```
+    const adapter = new PrismaPg({ connectionString });
+    super({ adapter });
+  }
 
-Levantar Postgres:
-
-```bash
-docker compose up -d
+  async onModuleInit() { await this.$connect(); }
+  async onModuleDestroy() { await this.$disconnect(); }
+}
 ```
 
 ---
 
-# 🔌 Variables de entorno
+## 🔄 Migraciones y Base de Datos
 
-### apps/api/.env
+### Crear migración inicial
 
-```env
-DATABASE_URL="postgresql://gym_saas:gym_saas@localhost:5432/gym_saas?schema=public"
+```
+pnpm --filter @gym-saas/api exec prisma migrate dev --name init
 ```
 
----
+### Regenerar cliente
 
-# 🧱 Migraciones
-
-```bash
-pnpm --filter @gym-saas/api exec prisma migrate dev --name init_gym_saas
+```
 pnpm --filter @gym-saas/api exec prisma generate
 ```
 
 ---
 
-# 🔧 Integración NestJS + Prisma
+## ▶️ Ejecutar el API
 
-### prisma.service.ts
+Modo desarrollo:
 
-```ts
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+```
+pnpm --filter @gym-saas/api run start:dev
+```
 
-@Injectable()
-export class PrismaService
-  extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy
+---
+
+## 🌐 Endpoints REST expuestos
+
+### 📌 Crear membresía — POST `/memberships`
+```json
 {
-  async onModuleInit() {
-    await this.$connect();
-  }
-
-  async onModuleDestroy() {
-    await this.$disconnect();
-  }
+  "gymId": "G1",
+  "userId": "U1",
+  "planId": "P1",
+  "startDate": "2025-01-01"
 }
 ```
 
-### prisma.module.ts
-
-```ts
-import { Global, Module } from '@nestjs/common';
-import { PrismaService } from './prisma.service';
-
-@Global()
-@Module({
-  providers: [PrismaService],
-  exports: [PrismaService],
-})
-export class PrismaModule {}
-```
-
-### app.module.ts
-
-```ts
-@Module({
-  imports: [
-    PrismaModule,
-    MembershipsModule,
-    TicketPacksModule,
-  ],
-})
-export class AppModule {}
+### 📌 Crear ticket pack — POST `/ticket-packs`
+```json
+{
+  "gymId": "G1",
+  "userId": "U1",
+  "name": "10 clases spinning",
+  "totalCredits": 10,
+  "priceAmount": 50000,
+  "priceCurrency": "COP"
+}
 ```
 
 ---
 
-# 🧪 Testing del dominio
+## 🧪 Ejecutar tests
 
-```bash
-npx turbo test --filter=@gym-saas/core-domain
+```
+npx turbo test --filter=@gym-saas/api
 ```
 
 ---
 
-# 🛠️ Scripts útiles
+## 🛠️ Tareas completadas recientemente
 
-```bash
-pnpm --filter @gym-saas/api dev
-pnpm --filter @gym-saas/admin-web dev
-pnpm --filter @gym-saas/core-domain test
-```
+### 🔹 Integración de Prisma 7 con adaptador `PrismaPg`
+- Se reemplazó el `datasource url` del schema por prisma.config.ts.
+- Se creó `PrismaService` con soporte oficial para Prisma 7.
+
+### 🔹 Creación de repositorios Prisma
+- Memberships  
+- Membership Plans  
+- Ticket Packs  
+- Gym Members  
+Cada uno mapea entidades de dominio a modelos Prisma.
+
+### 🔹 Exposición de endpoints REST en NestJS
+- `/memberships`  
+- `/ticket-packs`
+
+### 🔹 Correcciones de monorepo
+- Ajustes en `tsconfig.json` global y locales.  
+- Corrección de paths y exports del dominio.  
+- Se solucionó error de compilación por módulos CommonJS/Esm.
+
+### 🔹 API levantando correctamente
+- Se corrigió error de DATABASE_URL no detectado.  
+- NestJS inicia sin errores y Prisma conecta correctamente.
 
 ---
 
-# ✔ Requisitos
+## 🧩 Troubleshooting
 
-| Dependencia | Versión mínima |
-|------------|----------------|
-| NodeJS | 20.19+ |
-| PNPM | 9+ |
-| Docker | recomendado |
+| Problema | Solución |
+|---------|----------|
+| PrismaClientInitializationError | Revisar PrismaService y DATABASE_URL |
+| TS2307 módulos no encontrados | Ejecutar `pnpm install` + `pnpm --filter @gym-saas/core-domain run build` |
+| Prisma no ejecuta migraciones | Verificar `prisma.config.ts` |
+| API no arranca | Confirmar `.env` cargado correctamente |
 
 ---
 
-# 📌 Estado del proyecto
+## 📄 Licencia
+Proyecto privado — uso interno únicamente.
 
-✔ Dominio completo  
-✔ Tests funcionando  
-✔ Prisma 7 configurado  
-✔ Migraciones OK  
-✔ NestJS integrado  
+---
 
-⏳ Repositorios Prisma por implementar  
-⏳ Endpoints REST por completar
+**Última actualización:** 05 de diciembre de 2025  
+Creado automáticamente por ChatGPT.
+

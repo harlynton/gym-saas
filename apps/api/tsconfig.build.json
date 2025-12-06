@@ -1,4 +1,9 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
+  "compilerOptions": {
+    "noEmit": false,      // 👈 aquí SÍ queremos emitir
+    "declaration": false, // opcional: no necesitamos .d.ts del API
+    "outDir": "./dist"
+  },
+  "exclude": ["node_modules", "test", "dist", "**/*.spec.ts"]
 }

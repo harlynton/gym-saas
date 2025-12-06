@@ -35,6 +35,7 @@ model GymMember {
   gymId     String
   userId    String
   isActive  Boolean  @default(true)
+  role      String   @default("MEMBER")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -53,6 +54,8 @@ model MembershipPlan {
   // Money aplanado (amount + currency)
   priceAmount   Int
   priceCurrency String
+
+  allowsSpinning Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
