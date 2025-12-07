@@ -9,6 +9,10 @@ import {
   createMembership,
   CreateMembershipError,
   CreateMembershipInput,
+  Membership,
+  MembershipId,
+  GymId,
+  UserId
 } from '@gym-saas/core-domain';
 
 @Injectable()
@@ -39,4 +43,26 @@ export class MembershipsService {
       throw error;
     }
   }
+
+  //Obtener membresia por ID:
+  async findById(id: MembershipId): Promise<Membership | null> {
+    return this.membershipRepo.findById(id);
+  }
+
+  //Listar membresias por gym:
+  async findByGym(gymId: GymId): Promise<Membership[]> {
+    return this.membershipRepo.findByGym(gymId);
+  }
+
+  //Obtener membresia activa de un usuario en un gym determinado:
+  async findActiveByUserAndGym(
+    userId: UserId,
+    gymId: GymId,
+  ): Promise<Membership | null> {
+    return this.membershipRepo.findActiveByUserAndGym(userId, gymId);
+  }
+
+
+
+
 }

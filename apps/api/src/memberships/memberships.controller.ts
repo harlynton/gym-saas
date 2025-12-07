@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   Body,
+  Get,
 } from '@nestjs/common';
 
 import { MembershipsService } from './memberships.service';
@@ -15,7 +16,9 @@ import {
   CreateMembershipError,
   GymId,
   UserId, 
-  MembershipPlanId 
+  MembershipPlanId, 
+  Membership,
+  MembershipId
 } from '@gym-saas/core-domain';
 
 @Controller('gyms/:gymId/memberships')
@@ -59,5 +62,33 @@ export class MembershipsController {
       }
       throw error;
     }
+  }
+
+  //Obtener membresia por ID:
+  @Get(':id')
+  async findOne(
+    @Param('id') id: string,
+  ): Promise<Membership | null> {
+    return this.membershipsService.findById(id as MembershipId);
+  }
+
+  //Listar todas las membresias de un Gym:
+  @Get('gym/:gymId')
+  async findByGym(
+    @Param('gymId') gymId: string,
+  ): Promise<Membership[]> {
+    return this.membershipsService.findByGym(gymId as GymId);
+  }
+
+  //Obtener la membresia activa de un usuario en un gym:
+  @Get('gym/:gymId/user/:userId/active')
+  async findActiveByUserAndGym(
+    @Param('gymId') gymId: string,
+    @Param('userId') userId: string,
+  ): Promise<Membership | null> {
+    return this.membershipsService.findActiveByUserAndGym(
+      userId as UserId,
+      gymId as GymId,
+    );
   }
 }

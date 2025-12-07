@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   Body,
+  Get,
 } from '@nestjs/common';
 
 import { TicketPacksService } from './ticket-packs.service';
@@ -16,7 +17,8 @@ import {
   ConsumeTicketCreditError,
   GymId, 
   UserId, 
-  TicketPackId 
+  TicketPackId, 
+  TicketPack
 } from '@gym-saas/core-domain';
 
 @Controller('gyms/:gymId')
@@ -99,5 +101,40 @@ export class TicketPacksController {
       }
       throw error;
     }
+  }
+
+  //Obtener ticket pack por ID:
+  // GET /ticket-packs/:id
+  @Get(':id')
+  async findOne(
+    @Param('id') id: string,
+  ): Promise<TicketPack | null> {
+    return this.ticketPacksService.findById(id as TicketPackId);
+  }
+
+  //Listar ticket packs de un usuario en un gym:
+  // GET /ticket-packs/gym/:gymId/user/:userId
+  @Get('gym/:gymId/user/:userId')
+  async findByUserAndGym(
+    @Param('gymId') gymId: string,
+    @Param('userId') userId: string,
+  ): Promise<TicketPack[]> {
+    return this.ticketPacksService.findByUserAndGym(
+      userId as UserId,
+      gymId as GymId,
+    );
+  }
+
+  //Listar solo activos de un usuario en un gym:
+  // GET /ticket-packs/gym/:gymId/user/:userId/active
+  @Get('gym/:gymId/user/:userId/active')
+  async findActiveByUserAndGym(
+    @Param('gymId') gymId: string,
+    @Param('userId') userId: string,
+  ): Promise<TicketPack[]> {
+    return this.ticketPacksService.findActiveByUserAndGym(
+      userId as UserId,
+      gymId as GymId,
+    );
   }
 }

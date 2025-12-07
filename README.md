@@ -1,189 +1,165 @@
-# 📘 Gym SaaS — Monorepo
+# 🏋️‍♂️ Gym SaaS --- Monorepo
 
-## 🚀 Descripción general
+Este proyecto es un **SaaS para gimnasios**, construido con:
 
-Gym SaaS es un sistema modular para administrar gimnasios, membresías, paquetes de tickets y clases.  
-El proyecto está organizado como un **monorepo** usando **pnpm + turborepo**.
+-   **NestJS** --- API REST
+-   **Prisma ORM + PostgreSQL**
+-   **Core-Domain (DDD, casos de uso puros)**
+-   **TurboRepo + pnpm workspaces**
+-   **Node 20.19.0**
 
-Incluye dos paquetes principales:
+------------------------------------------------------------------------
 
-- **core-domain** → Dominio puro (entidades, value objects, repositorios e interfaces, casos de uso).
-- **api** → API REST en **NestJS**, usando **Prisma ORM 7** con `PrismaPg`.
+## 📦 Estructura del Monorepo
 
----
+    gym-saas/
+    │
+    ├── apps/
+    │   └── api/                     # API con NestJS
+    │
+    ├── packages/
+    │   └── core-domain/             # Entidades, repositorios, casos de uso
+    │
+    ├── prisma/                      # Migraciones del API
+    └── ...
 
-## 🗂️ Estructura del Monorepo
+------------------------------------------------------------------------
 
-```
-gym-saas/
-│
-├── apps/
-│   └── api/
-│       ├── src/
-│       ├── prisma/
-│       └── package.json
-├── packages/
-│   └── core-domain/
-│       └── src/
-├── pnpm-workspace.yaml
-└── turbo.json
-```
+## 🔧 Configuración Inicial
 
----
+### 1. Instalar dependencias
 
-## 🔧 Configuración del Entorno
-
-### 1. Archivo `.env`
-
-```
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/gym_saas?schema=public"
+``` bash
+pnpm install
 ```
 
-### 2. `prisma.config.ts`
+### 2. Crear el archivo `.env` en `apps/api`
 
-```ts
-import { defineConfig } from '@prisma/config';
+    DATABASE_URL="postgresql://postgres:postgres@localhost:5432/gym_saas"
+    PORT=3000
 
-export default defineConfig({
-  schema: './prisma/schema.prisma',
-  datasource: {
-    url: process.env.DATABASE_URL!,
-  },
-});
+------------------------------------------------------------------------
+
+## 🛢 Base de datos PostgreSQL en Docker
+
+Crear el contenedor:
+
+``` bash
+docker run --name gym-postgres   -e POSTGRES_PASSWORD=postgres   -e POSTGRES_DB=gym_saas   -p 5432:5432   -d postgres
 ```
 
-### 3. PrismaService (NestJS)
+------------------------------------------------------------------------
 
-```ts
-import 'dotenv/config';
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
+## 🧩 Configuración de Prisma ORM
 
-@Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
-  constructor() {
-    const connectionString = process.env.DATABASE_URL;
+### Migrar la base de datos
 
-    if (!connectionString) {
-      throw new Error('DATABASE_URL is not set in environment variables');
-    }
-
-    const adapter = new PrismaPg({ connectionString });
-    super({ adapter });
-  }
-
-  async onModuleInit() { await this.$connect(); }
-  async onModuleDestroy() { await this.$disconnect(); }
-}
-```
-
----
-
-## 🔄 Migraciones y Base de Datos
-
-### Crear migración inicial
-
-```
+``` bash
 pnpm --filter @gym-saas/api exec prisma migrate dev --name init
 ```
 
-### Regenerar cliente
+### Abrir Prisma Studio
 
-```
-pnpm --filter @gym-saas/api exec prisma generate
-```
-
----
-
-## ▶️ Ejecutar el API
-
-Modo desarrollo:
-
-```
-pnpm --filter @gym-saas/api run start:dev
+``` bash
+pnpm --filter @gym-saas/api exec prisma studio
 ```
 
----
+------------------------------------------------------------------------
 
-## 🌐 Endpoints REST expuestos
+## 🌱 Sembrado inicial de datos
 
-### 📌 Crear membresía — POST `/memberships`
-```json
+``` sql
+INSERT INTO "Gym" (id, name, "createdAt", "updatedAt")
+VALUES ('demo-gym', 'Demo Gym', NOW(), NOW());
+
+INSERT INTO "User" (id, email, name, "createdAt", "updatedAt")
+VALUES ('demo-user', 'demo@gym.com', 'Demo User', NOW(), NOW());
+
+INSERT INTO "GymMember" (id, "gymId", "userId", "isActive", "createdAt", "updatedAt")
+VALUES ('demo-member', 'demo-gym', 'demo-user', true, NOW(), NOW());
+
+INSERT INTO "MembershipPlan" (
+  id, "gymId", name, "durationDays",
+  "priceAmount", "priceCurrency",
+  "createdAt", "updatedAt"
+) VALUES (
+  'plan-1', 'demo-gym', 'Mensual', 30,
+  100000, 'COP',
+  NOW(), NOW()
+);
+```
+
+------------------------------------------------------------------------
+
+## 🔥 Endpoints REST Actuales
+
+### 📌 Crear Membership
+
+**POST /memberships**
+
+``` json
 {
-  "gymId": "G1",
-  "userId": "U1",
-  "planId": "P1",
-  "startDate": "2025-01-01"
+  "gymId": "demo-gym",
+  "userId": "demo-user",
+  "membershipPlanId": "plan-1"
 }
 ```
 
-### 📌 Crear ticket pack — POST `/ticket-packs`
-```json
+### 📌 Crear Ticket Pack
+
+**POST /ticket-packs**
+
+``` json
 {
-  "gymId": "G1",
-  "userId": "U1",
+  "gymId": "demo-gym",
+  "userId": "demo-user",
   "name": "10 clases spinning",
   "totalCredits": 10,
-  "priceAmount": 50000,
+  "priceAmount": 20000,
   "priceCurrency": "COP"
 }
 ```
 
----
+------------------------------------------------------------------------
 
-## 🧪 Ejecutar tests
+## 🧪 Pruebas del dominio
 
+``` bash
+npx turbo test --filter=@gym-saas/core-domain
 ```
-npx turbo test --filter=@gym-saas/api
+
+------------------------------------------------------------------------
+
+## 🚀 Ejecutar API en modo desarrollo
+
+``` bash
+pnpm --filter @gym-saas/api run start:dev
 ```
 
----
+La API queda disponible en:\
+👉 **http://localhost:3000**
 
-## 🛠️ Tareas completadas recientemente
+------------------------------------------------------------------------
 
-### 🔹 Integración de Prisma 7 con adaptador `PrismaPg`
-- Se reemplazó el `datasource url` del schema por prisma.config.ts.
-- Se creó `PrismaService` con soporte oficial para Prisma 7.
+## ✔️ Cambios añadidos hoy
 
-### 🔹 Creación de repositorios Prisma
-- Memberships  
-- Membership Plans  
-- Ticket Packs  
-- Gym Members  
-Cada uno mapea entidades de dominio a modelos Prisma.
+-   Se corrigió la configuración de Prisma 7
+-   Se creó `PrismaService` compatible con el nuevo sistema de
+    `PrismaClientOptions`
+-   Se añadieron repositorios Prisma para Memberships, Ticket Packs y
+    Gym Members
+-   Se activó el módulo de NestJS para exponer endpoints REST reales
+-   Se solucionó el problema de imports entre `core-domain` y `api`
+-   Se probó y ejecutó la API correctamente contra PostgreSQL real
 
-### 🔹 Exposición de endpoints REST en NestJS
-- `/memberships`  
-- `/ticket-packs`
+------------------------------------------------------------------------
 
-### 🔹 Correcciones de monorepo
-- Ajustes en `tsconfig.json` global y locales.  
-- Corrección de paths y exports del dominio.  
-- Se solucionó error de compilación por módulos CommonJS/Esm.
+## 🧭 Próximos pasos sugeridos
 
-### 🔹 API levantando correctamente
-- Se corrigió error de DATABASE_URL no detectado.  
-- NestJS inicia sin errores y Prisma conecta correctamente.
+1.  Agregar autenticación JWT
+2.  Crear endpoints GET para listar memberships y ticket packs
+3.  Implementar sistema de reservas de spinning
+4.  Crear pruebas E2E en NestJS
+5.  Despliegue en Render / Railway
 
----
-
-## 🧩 Troubleshooting
-
-| Problema | Solución |
-|---------|----------|
-| PrismaClientInitializationError | Revisar PrismaService y DATABASE_URL |
-| TS2307 módulos no encontrados | Ejecutar `pnpm install` + `pnpm --filter @gym-saas/core-domain run build` |
-| Prisma no ejecuta migraciones | Verificar `prisma.config.ts` |
-| API no arranca | Confirmar `.env` cargado correctamente |
-
----
-
-## 📄 Licencia
-Proyecto privado — uso interno únicamente.
-
----
-
-**Última actualización:** 05 de diciembre de 2025  
-Creado automáticamente por ChatGPT.
-
+------------------------------------------------------------------------
