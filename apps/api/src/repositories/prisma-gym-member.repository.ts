@@ -1,3 +1,4 @@
+// apps/api/src/repositories/prisma-gym-member.repository.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -6,7 +7,8 @@ import {
   GymMember,
   GymMemberId,
   GymId,  
-  UserId 
+  UserId,
+  RoleInGym,
 } from '@gym-saas/core-domain';
 
 // 👇 Inferimos el tipo de rol desde la entidad del dominio
@@ -48,6 +50,27 @@ export class PrismaGymMemberRepository implements GymMemberRepository {
 
     return rows.map((row) => this.mapDbToDomain(row));
   }
+
+  async save(member: GymMember): Promise<GymMember> {
+  const saved = await this.prisma.gymMember.upsert({
+    where: { id: member.id },
+    update: {
+      role: member.role,
+      isActive: member.isActive,
+    },
+    create: {
+      id: member.id,
+      gymId: member.gymId,
+      userId: member.userId,
+      role: member.role,
+      isActive: member.isActive,
+      createdAt: member.joinedAt
+    },
+  });
+
+  return this.mapDbToDomain(saved);
+}
+
 
   private mapDbToDomain(db: any): GymMember {
     return {

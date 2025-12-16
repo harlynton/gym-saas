@@ -15,11 +15,14 @@ export * from './entities/ticket-pack';
 export * from './entities/spinning-class';
 export * from './entities/spinning-booking';
 export * from './entities/payment';
+
 export * from './repositories/membership-plan-repository';
 export * from './repositories/gym-member-repository';
 export * from './repositories/membership-repository';
 export * from './repositories/ticket-pack-repository';
+export * from './repositories/gym-repository';
 
 export * from './use-cases/create-membership';
 export * from './use-cases/create-ticket-pack';
 export * from './use-cases/consume-ticket-credit';
+export * from './use-cases/create-gym';

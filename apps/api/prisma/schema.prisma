@@ -9,6 +9,9 @@ datasource db {
 model Gym {
   id              String             @id
   name            String
+  slug            String   @unique
+  isActive        Boolean  @default(true)
+  
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
