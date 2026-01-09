@@ -4,4 +4,5 @@ import { Gym, GymId } from '../entities/gym';
 export interface GymRepository {
   save(gym: Gym): Promise<Gym>;
   findById(id: GymId): Promise<Gym | null>;
+  findBySlug(slug: string): Promise<Gym | null>;
 }

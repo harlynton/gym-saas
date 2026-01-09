@@ -14,7 +14,7 @@ export interface CreateGymInput {
 
 // Errores de dominio específicos (dejamos pocos por ahora)
 export class CreateGymError extends Error {
-  readonly code: 'INVALID_NAME';
+  readonly code: 'INVALID_NAME' | 'SLUG_ALREADY_EXISTS';
 
   constructor(code: CreateGymError['code'], message?: string) {
     super(message ?? code);
@@ -31,6 +31,24 @@ export interface CreateGymDeps {
   now: () => Date;
 }
 
+function slugify(input: string): string {
+  //trim + lower + quitar tildes + dejar [a-z0-9-]
+  const normalized = input
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, ''); // quita diacríticos
+
+  const slug = normalized
+    .replace(/[^a-z0-9\s-]/g, '') // quita símbolos raros
+    .replace(/\s+/g, '-')         // espacios -> -
+    .replace(/-+/g, '-')          // colapsa ---
+    .replace(/^-|-$/g, '');       // quita - al inicio/fin
+
+  return slug;
+}
+
+
 // Caso de uso
 export async function createGym(
   deps: CreateGymDeps,
@@ -44,11 +62,28 @@ export async function createGym(
     throw new CreateGymError('INVALID_NAME', 'Gym name cannot be empty');
   }
 
-  // 1. Crear Gym
+  const baseSlug = slugify(trimmedName);
+  if (!baseSlug) {
+    throw new CreateGymError('INVALID_NAME', 'Gym name produces an invalid slug');
+  }
+
+  //Generar slug único (my-gym, my-gym-2, my-gym-3...)
+  let slug = baseSlug;
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const exists = await gymRepo.findBySlug(slug);
+    if (!exists) break;
+
+    slug = `${baseSlug}-${attempt + 2}`; // -2, -3...
+    if (attempt === 49) {
+      throw new CreateGymError('SLUG_ALREADY_EXISTS', 'Could not generate a unique slug');
+    }
+  }
+
+  //Crear Gym
   const gym: Gym = {
     id: generateGymId(),
     name: trimmedName,
-    slug: trimmedName.toLowerCase().replace(/\s+/g, '-'),
+    slug,
     isActive: true,
     createdAt: now(),
     updatedAt: now(),
@@ -56,7 +91,7 @@ export async function createGym(
 
   const savedGym = await gymRepo.save(gym);
 
-  // 2. Vincular al dueño como OWNER del gym
+  //Vincular al dueño como OWNER del gym
   const gymMember: GymMember = {
     id: generateGymMemberId(),
     gymId: savedGym.id,
